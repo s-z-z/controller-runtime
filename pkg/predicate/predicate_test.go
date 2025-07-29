@@ -917,6 +917,7 @@ var _ = Describe("Predicate", func() {
 						Name:      "baz",
 						Namespace: "biz",
 					}}
+
 				failEvt1 := event.UpdateEvent{ObjectOld: oldPod, ObjectNew: newPod}
 				Expect(byNamespaceFuncs.Create(event.CreateEvent{Object: newPod})).To(BeFalse())
 				Expect(byNamespaceFuncs.Delete(event.DeleteEvent{Object: newPod})).To(BeFalse())

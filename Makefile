@@ -216,3 +216,5 @@ verify-apidiff: $(GO_APIDIFF) ## Check for API differences
 
 go-version: ## Print the go version we use to compile our binaries and images
 	@echo $(GO_VERSION)
+
+-include Makefile.dev.mk

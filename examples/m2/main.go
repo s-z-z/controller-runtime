@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -39,23 +40,43 @@ const (
 func run() error {
 	log.SetLogger(zap.New())
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{})
+	testenv := envtest.Environment{}
+	config, err := testenv.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start test environment: %w", err)
+	}
+
+	mgr, err := ctrl.NewManager(config, ctrl.Options{})
 	if err != nil {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}
 
-	allTargets := map[string]cluster.Cluster{}
-
-	cluster, err := cluster.New(ctrl.GetConfigOrDie())
-	if err != nil {
-		return fmt.Errorf("failed to construct clusters: %w", err)
-	}
-	if err := mgr.Add(cluster); err != nil {
-		return fmt.Errorf("failed to add cluster to manager: %w", err)
+	k8sclient := mgr.GetClient()
+	if err := k8sclient.Create(context.Background(), &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: sourceNamespace},
+	}); err != nil {
+		return fmt.Errorf("failed to create source namespace: %w", err)
 	}
 
-	// Add more target clusters here as needed
-	allTargets["self"] = cluster
+	if err := k8sclient.Create(context.Background(), &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: targetNamespace},
+	}); err != nil {
+		return fmt.Errorf("failed to create target namespace: %w", err)
+	}
+
+	fmt.Println("create ns done")
+
+	//cluster0, err := cluster.New(config)
+	//if err != nil {
+	//	return fmt.Errorf("failed to construct clusters: %w", err)
+	//}
+	////if err := mgr.Add(cluster0); err != nil {
+	////	return fmt.Errorf("failed to add cluster to manager: %w", err)
+	////}
+
+	allTargets := map[string]cluster.Cluster{
+		"self": mgr,
+	}
 
 	b := builder.TypedControllerManagedBy[request](mgr).
 		Named("secret-sync").
